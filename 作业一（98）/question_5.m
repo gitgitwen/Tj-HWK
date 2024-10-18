@@ -1,0 +1,23 @@
+clc;
+clear;
+data = readtable('C:\Users\28022\Desktop\question_5.xlsx');
+time_15min = datetime(data.("time_15min_"), 'InputFormat', 'yyyy-MM-dd HH:mm:ss'); 
+q_15min = data.("q"); 
+v_15min = data.("v");
+figure;
+plot(time_15min, v_15min, 'r-o', 'LineWidth', 1.5, 'MarkerSize', 3); 
+hold on
+plot(time_15min, q_15min, 'g-s', 'LineWidth', 1.5, 'MarkerSize', 3); 
+legend({'速度时序图','流量时序图'}, 'FontSize', 12, 'Location', 'northwest');
+xlabel('时间', 'Interpreter', 'latex', 'FontSize', 14);
+ylabel('流量/速度', 'Interpreter', 'latex', 'FontSize', 14);
+ax = gca;
+ax.XTickLabelRotation = 45; 
+ax.FontSize = 12; 
+ax.LineWidth = 1.5; 
+grid on;
+set(gca, 'GridLineStyle', '--', 'GridColor', 'k', 'GridAlpha', 0.2); 
+set(gca, 'Box', 'on');
+set(gcf, 'Position', [100, 100, 1200, 800]); 
+set(gca, 'FontWeight', 'bold');
+hold off;

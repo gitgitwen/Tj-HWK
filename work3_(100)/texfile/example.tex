@@ -1,0 +1,297 @@
+\documentclass[withoutpreface,bwprint]{cumcmthesis} %去掉封面与编号页，电子版提交的时候使用。
+\usepackage[framemethod=TikZ]{mdframed}
+\usepackage{url}   % 网页链接
+\usepackage{subcaption} % 子标题
+
+\title{故障数据检测、数据修复与平滑}
+\begin{document}
+ \maketitle
+ 数据集统计了从2010年4月22日00:00:00到2010年4月24日23:59:40这个时间段，用线圈采集的上海市内环高速路以20s为时间单元的车流量，平均车速和占有率的数据。
+
+\section{问题一}
+在本数据集中，冗余数据是指同一时间同一线圈检测器采集到多条数据，这是不符合正常情况的。本题用python对冗余数据进行查找，若有冗余数据，则采用冗余记录的平均值作为该时刻的记录值。\par
+使用代码$df[df.duplicated('FDT\_TIME',keep=False)]$查找的冗余数据如下：\par
+\begin{figure}[!htbp] 
+    \centering
+    \includegraphics[width=0.7\textwidth]{"C:/Users/28022/Pictures/shumo/1.png"}
+    \caption{冗余数据}
+    \label{fig:your_label}
+\end{figure}
+发现该冗余数据的各检测值相同，对冗余数据进行平均处理即相当于删去一组数据。（本题代码见$q1.py$，处理冗余数据后的数据见$HWK3\_data(1)$）
+
+\section{问题二}
+数据采集周期为3天，共259200秒，数据间隔为20秒，故应有12960组数据。观察经过冗余处理后的数据集可知，仅有12951组数据，还缺少9组数据。本题通过python查找出缺失的数据的时间如下表所示：\par
+\begin{table}[!htbp]
+    \centering
+    \caption{缺失数据统计}
+    \begin{tabular}{cc} 
+        \toprule[1.5pt]
+        数据缺失时段 & 缺失数据个数 \\ 
+        \midrule 
+        (2010-04-22 11:09:20 , 2010-04-22 11:10:20) & 2 \\
+        (2010-04-23 16:19:40 , 2010-04-23 16:21:40) & 5 \\
+        (2010-04-24 14:35:00 , 2010-04-24 14:36:00) & 2 \\
+        \bottomrule[1.5pt]
+    \end{tabular}
+\end{table}\par
+之后对缺失样本的数据用对应前三个周期样本的各项数据的平均值进行填充。（本题代码见$q2.py$，填充后的数据见$HWK3\_data(2)$）
+
+\section{问题三}
+本题以问题二得出的数据为研究对象，分别采用独立判断法，联合判断法，平均有效车长法对故障数据进行检测。
+
+    \subsection{独立判断法}
+    根据所有数据，绘制流量，速度及占有率的可视化图如下：（作图网站：https://cnsknowall.com）\par
+    \begin{figure}[!htbp] 
+        \centering
+        \includegraphics[width=0.7\textwidth]{"C:/Users/28022/Pictures/shumo/6.png"}
+        \caption{各参数分布可视化图}
+        \label{fig:your_label}
+    \end{figure}
+    由图可知，流量分布较为集中，基本没有异常值；速度主要分布于20km/h左右及50km/h--110km/h。上海市内环高速路的限速大概在80km/h，且该检测器位于道路交汇口处，速度应有适当下降。可认为速度在110km/h及以上即为异常值；占有率呈大跨度分布状态，主要分布于2\%-40\%，从单因素来看，占有率也无异常数据。\par
+    经过统计分析，从独立判断法判别出的无效数据共有30个。无效数据的索引如下：\par
+        \begin{table}[!htbp]
+            \centering
+            \caption{无效数据索引表}
+            \begin{tabular}{|c|c|c|c|c|c|}
+                \hline
+                181 & 363 & 441 & 542 & 843 & 983 \\ \hline
+                1075 & 1086 & 4295 & 4533 & 4685 & 4836 \\ \hline
+                4889 & 5157 & 5192 & 5232 & 5267 & 5282 \\ \hline
+                5317 & 5856 & 8934 &9084 & 9228 & 9264 \\ \hline
+                9271 & 9335 & 9406 & 9781 & 9899 & 12728 \\ \hline
+                \end{tabular}
+        \end{table}\par
+
+    \subsection{联合判断法}
+    从速度$(v)$，流量$(q)$，占有率$(o)$三个角度综合分析。若是正常数据，则应有以下约束条件：
+    \begin{itemize}
+        \item  如果$v=0$，则$q=0$，$o=100\%$或$o=0$：当所有车辆停止不动时（如交通堵塞）或道路上没有车辆时，没有车辆通过检测器，导致流量为零;当交通堵塞时，占有率应无限接近于$100\%$，通常认为占有率为$100\%$。
+        \item 如果$o=0$，则$q=0$，$v=0$：占有率为零表示检测器在观察期间内没有车辆经过或停留，因此流量为零；由于没有车辆经过，速度无法定义，通常认为速度为0。
+        \item 如果$o=100\%$，则$q=0$，$v=0$：如果检测器被车辆持续占用，这通常意味着车辆停止不动，因此流量为零。
+        \item 如果$q=0$，则$o=0$或$o=100\%$，且$v=0$：如果流量为0.则表示道路上没车或拥堵程度很大导致车辆停止。
+    \end{itemize}
+    通过python编程可知：联合判断法判别出的无效数据共有56个。（本题代码见$q3\_\text{联合判断}.py$）\par
+    无效数据的索引如下：\par
+        \begin{table}[!htbp]
+            \centering
+            \caption{无效数据索引表}
+            \begin{tabular}{|c|c|c|c|c|c|c|c|}
+                \hline
+                11 & 30 & 84 & 159 & 206 & 322 & 393 & 411 \\ \hline
+                434 & 460 & 636 & 654 & 741 & 795 & 853 & 889 \\ \hline
+                895 & 922 & 1062 & 1458 & 3133 & 3153 & 3901 & 4337 \\ \hline
+                4543 & 4717 & 4940 & 4961 & 5042 & 5053 & 5382 & 5656 \\ \hline
+                5677 & 7233 & 7236 & 7252 & 7473 & 8966 & 9013 & 9125 \\ \hline
+                9133 & 9218 & 9240 & 9393 & 9442 & 9731 & 10188 & 10519 \\ \hline
+                11243 & 11269  & 11397 & 11398 & 11715  & 11728 & 11882  & 12765  \\ \hline
+                \end{tabular}
+        \end{table}\par
+
+    \subsection{平均有效车长法}
+    平均有效车长的计算公式为：（考虑单位换算）\par
+    \begin{equation}
+        \bar{L}=\frac{o\cdot v}{18q}
+    \end{equation}
+    对每一组数据均可求出该组数据下的平均有效车长（见$q3\_\text{平均有效车长}.xlsx$），绘制出车长直方图如下：（作图网站：https://cnsknowall.com）\par
+    \begin{figure}[!htbp] 
+        \centering
+        \includegraphics[width=0.9\textwidth]{"C:/Users/28022/Pictures/shumo/5.png"}
+        \caption{平均有效车长}
+        \label{fig:your_label}
+    \end{figure}\par
+    根据分析，乘用车车长一般在$5\sim 12m$，货车车长一般在$12\sim 16m$。故认为计算出的平均有效车长超过$16m$的数据即为无效数据。共有55个
+    无效数据的索引如下：\par
+        \begin{table}[!htbp]
+            \centering
+            \caption{无效数据索引表}
+            \begin{tabular}{|c|c|c|c|c|c|c|c|c|c|c|}
+                \hline
+                959 & 1013 & 1425 & 1444 & 1456 & 1739 & 1763 & 1846 & 1913 & 2086 & 2454 \\ \hline
+                2546 & 2846 & 2898 & 2937 & 3130 & 3153 & 3258 & 4608 & 5384 & 5641 & 5646 \\ \hline
+                5653 & 5655 & 5656 & 5667 & 5671 & 6148 & 6271 & 6337 & 6875 & 7057 & 7238 \\ \hline
+                7240 & 7308 & 7470 & 7471 & 7472 & 7509 & 7527 & 7800 & 8649 & 10518 & 10548 \\ \hline
+                11146 & 11183 & 11189 & 11232 & 11372 & 11387 & 11398 & 11400 & 11725 & 11727 & 11897 \\ \hline
+                \end{tabular}
+        \end{table}\par
+
+        \subsection{方法总结}
+        分别采用三种方法判断出的无效数据个数如下表所示：\newpage
+        \begin{table}[!htbp]
+            \centering
+            \caption{各方法对比}
+            \begin{tabular}{cc} 
+                \toprule[1.5pt]
+                方法 & 缺失数据个数 \\ 
+                \midrule 
+                独立判断法 & 30 \\
+                联合判断法 & 56 \\
+                平均有效车长法 & 55 \\
+                \bottomrule[1.5pt]
+            \end{tabular}
+        \end{table}
+        上表可知：独立判断法判断出的无效数据个数最少，联合判断法和平均有效车长法判断出的无效数据个数几乎相同。
+\section{问题四}
+根据有效性定义：满足有效性判别准则的有效数据量与实际采集到的非冗余数据量的比值。本文基于第一问结果的数据（$HWK3\_data(1)$）进行分析，综合第三问的三种判别方法的结果，进行有效性分析。有效性公式如下：
+\begin{equation}
+    Valid=\frac{n_{valid}}{n_{actual}}\times 100\%
+\end{equation}\par
+本题用到的数据见$q4.xlsx$。\par
+    \subsection{小时有效性}
+    经分析，得到部分小时有效性数据如下：\par
+    \begin{table}[!htbp]
+        \centering
+        \caption{小时有效性（部分）}
+        \begin{tabular}{cc} 
+            \toprule[1.5pt]
+            时段 & 小时有效性(\%) \\ 
+            \midrule 
+            (2010-04-22 00:00:00 , 2010-04-22 01:00:00) & 97.78 \\
+            (2010-04-22 01:00:00 , 2010-04-22 02:00:00) & 98.33 \\
+            (2010-04-22 02:00:00 , 2010-04-22 03:00:00) & 96.67 \\
+            (2010-04-22 03:00:00 , 2010-04-22 04:00:00) & 98.33 \\
+            \bottomrule[1.5pt]
+        \end{tabular}
+    \end{table}\par
+    小时有效性直方图为：（作图网站：https://cnsknowall.com）\newpage
+    \begin{figure}[!htbp] 
+        \centering
+        \includegraphics[width=0.9\textwidth]{"C:/Users/28022/Pictures/shumo/7.png"}
+        \caption{小时有效性}
+        \label{fig:your_label}
+    \end{figure}\par
+    由图可知，大约一半多的检测小时段内，数据有效性非常高。小时有效性最低也是95\%到96\%，总体而言，小时有效性非常高。
+
+    \subsection{日有效性}
+    经分析，得到日有效性数据如下：\par
+    \begin{table}[!htbp]
+        \centering
+        \caption{日有效性}
+        \begin{tabular}{cc} 
+            \toprule[1.5pt]
+            日期 & 日有效性(\%) \\ 
+            \midrule 
+            2010-04-22 & 98.84 \\
+            2010-04-23 & 98.89 \\
+            2010-04-24 & 99.00 \\
+            \bottomrule[1.5pt]
+        \end{tabular}
+    \end{table}\par
+    日有效性直方图为：（作图网站：https://cnsknowall.com）\newpage
+    \begin{figure}[!htbp] 
+        \centering
+        \includegraphics[width=0.8\textwidth]{"C:/Users/28022/Pictures/shumo/8.png"}
+        \caption{日有效性}
+        \label{fig:your_label}
+    \end{figure}\par
+    由此可知，三天中，每天的检测数据有效性大约相等，且非常高。
+
+\section{问题五}
+    \subsection{移动平均法}
+    选取24日6：30-9：30的速度数据，对其分别进行$window=3,5,7$的移动平均法进行数据平滑。平滑后的数据见$smoothed\_data.xlsx$。\par
+    移动平均法效果如下：（代码见$q5\_1.py$）\par
+    \begin{figure}[!htbp] 
+        \centering
+        \includegraphics[width=0.9\textwidth]{"C:/Users/28022/OneDrive/文档/交通数据采集与分析/作业/作业三/q5/speed_time_series_hm.png"}
+        \caption{移动平均法}
+        \label{fig:your_label}
+    \end{figure}\par
+    据图分析有：\par
+    \begin{itemize}
+        \item window=3（红色曲线）：仅提供了轻微的平滑效果。红色曲线紧跟着原始的蓝色曲线，去除了最小部分的波动，但保留了较多的细节。
+        \item window=5（绿色曲线）：比window=3更加平滑。它去除了更多的短期噪声，同时仍然能够捕捉中等程度的速度变化。
+        \item window=7（黄色曲线）：提供了最强的平滑效果。黄色曲线去除了大部分的快速波动，更好地反映了速度的总体趋势。
+    \end{itemize}
+    总之window越大，平滑效果越明显。\par
+
+    \subsection{指数平滑法}
+    选取24日6：30-9：30的速度数据，对其分别进行$\alpha =0.1,0.2,0.5$的指数平滑法进行数据平滑。平滑后的数据见$exponential\_smoothing.xlsx$。\par
+    指数平滑法效果如下：（代码见$q5\_2.py$）\par
+    \begin{figure}[!htbp] 
+        \centering
+        \includegraphics[width=0.9\textwidth]{"C:/Users/28022/OneDrive/文档/交通数据采集与分析/作业/作业三/q5/speed_time_series_hm1.png"}
+        \caption{指数平滑法}
+        \label{fig:your_label}
+    \end{figure}\par
+    据图分析有：\par
+    \begin{itemize}
+        \item $\alpha =0.1$ 使得曲线中的小波动和短期噪声得到有效抑制，曲线更加平滑。然而，它的反应较慢，因此一些速度快速变化的细节（例如高峰和低谷的尖锐变化）平滑曲线中被弱化。
+        \item $\alpha =0.2$的平滑曲线相比 $\alpha =0.1$ 对速度变化的反应速度稍快。它保留了一些原始数据的波动，同时仍然去除了较小的噪声。使得曲线在平滑性和反应速度之间达到了一定的平衡。
+        \item $\alpha =0.5$ 让曲线对原始数据的变化响应最快，因此与原始曲线最接近。这条曲线仅有少量平滑效果，噪声的去除较少，但能很好地反映原始数据中的快速变化。
+    \end{itemize}
+
+    \section{问题六}
+        \subsection{相邻时段平均修复}
+        对数据分析可知，该数据中缺失了100个目标检测器的速度数据，且缺失数据分布较为分散。对目标检测器缺失的速度数据，用前三个周期数据的平均值进行填补。（填补后的数据见$q6.xlsx$）\par
+        修复前和修复后的散点图如下：（作图网站：https://cnsknowall.com）\par
+        \begin{figure}[!htbp] 
+            \centering
+            \includegraphics[width=0.9\textwidth]{"C:/Users/28022/Pictures/shumo/9.png"}
+            \caption{相邻时段平均修复散点图}
+            \label{fig:your_label}
+        \end{figure}\par
+        图中不在直线上的点表示修复数据与原数据的偏离程度。其中，两列数据的均方根误差$RMSE=1.97$。说明此方法修复数据的效果较好。
+
+        \subsection{KNN修复}
+        原理：找出待修复样本的k个最近邻居，将这些邻居的属性的（加权）平均赋给该样本缺失属性，就得到该样本缺失属性的修复值（针对数值变量）。（填补后的数据见$imputed\_data.xlsx$，代码见$q6.py$）\par
+        修复前和修复后的散点图如下：（作图网站：https://cnsknowall.com）\newpage
+        \begin{figure}[!htbp]
+            \centering
+            \begin{minipage}{0.49\textwidth}
+                \centering
+                \includegraphics[width=\linewidth]{"C:/Users/28022/Pictures/shumo/40.png"}
+                \caption{K=1时KNN修复散点图}
+            \end{minipage}
+            \hfill % 用于在两张图片之间添加间隔
+            \begin{minipage}{0.49\textwidth}
+                \centering
+                \includegraphics[width=\linewidth]{"C:/Users/28022/Pictures/shumo/41.png"}
+                \caption{K=3时KNN修复散点图}
+            \end{minipage}
+        \end{figure}\par
+        图中不在直线上的点同样表示修复数据与原数据的偏离程度。其中，当K=1时，两列数据的均方根误差$RMSE=2.02$，当K=3时，两列数据的均方根误差$RMSE=1.77$。两者的均方根无误差都比较小，且K=3时，数据的均方根误差最小，数据修复的效果更好。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
+    
+
+
+
+
+    
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\end{document} 

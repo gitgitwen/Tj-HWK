@@ -4,7 +4,7 @@
 * 报告模板.  
 * 报告中绝大部分图片（原图直出）.  
 * 调试好的MATLAB/Python代码.  
-* EXCEL过程文件.  
+* Excel过程文件.  
 ## 注意
 * 在运行代码时，请注意导入的文件路径问题.  
 * 第1次作业扣了2分的原因是：**“第二级大标题建议左对齐，流量速度时序图可设置双纵坐标”**.
@@ -12,6 +12,6 @@
   `title('Scatter plot of v vs q', 'FontSize', 14, 'FontWeight', 'bold', 'FontName', 'Times New Roman')`
 * 第4次作业中，绘制“嘉定区接单热力图”的代码比较复杂，若运行时遇见意外报错，请自行AI解决^_^,文件中仅给出了HTML文件.
 * 第3、5次作业用latex编辑，对应的tex文件也在其中，若不需要，请忽略.  
-* 第3、5次作业中某些图，请用在线网站[cnsknowall](https://cnsknowall.com/)绘制，需要的数据请从EXCEL过程文件中自行寻找. 
+* 第3、5次作业中某些图，请用在线网站[cnsknowall](https://cnsknowall.com/)绘制，需要的数据请从Excel过程文件中自行寻找. 
 ****
 _**2025-07-02整理，更新完毕**_
